@@ -1,0 +1,30 @@
+[Unit]
+Description=Hydroponic Dashboard Watchdog
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+User=penutaco
+Group=penutaco
+WorkingDirectory=/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard
+ExecStart=/home/penutaco/GitHub/Hydroponic Prototype V1/.venv/bin/python /home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard/dashboard_watchdog.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dashboard-watchdog
+
+# Environment
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=false
+ProtectHome=false
+ReadWritePaths=/home/penutaco/GitHub/Hydroponic Prototype V1
+
+[Install]
+WantedBy=multi-user.target

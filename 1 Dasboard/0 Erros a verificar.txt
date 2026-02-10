@@ -1,0 +1,263 @@
+1: Para o mesmo evento
+
+LOG:
+
+📊 SENSOR: Cycle 1201, pH=4.93, EC=1.72 mS/cm
+📈 STATUS: Stage 1, pH❌ EC✅, Health=100%
+⚗️ DOSING: ph_plus - 10.00mL (12000ms) for pH 4.93→6.0
+🎯 EVENT: PRGSample #6 - dosing_trigger (pH=4.93, EC=1.72)
+Error converting data: could not convert string to float: 'DOSING_ACTION'
+
+CVS:
+=== DOSING CHECK TRIGGERED BY EVENT #6 === Using measurements from Event #5: pH=4.93, EC=1.72 === DOSING CHECK START === Current: pH=4.93, EC=1.72 Stage 1: Target pH=6.0±0.2, EC=1.7±0.1 Deviations: pH diff=1.07 (need >0.2), EC diff=0.02 (need >0.1) pH Dosing Decision: 4.93 → 6.0 (diff: 1.07), Volume: 10.00 mL, Time: 12000 ms PUMP_ON,1203249,ph_plus,27,12000,10.00 PUMP_OFF,1215260,ph_plus,27 Dosing completed: ph_plus on pin 27 for 12000 ms (10.00 mL) ✅ DOSING COMPLETED: Action #1 at 1215260 ms DOSING_STATUS,1215271,1,1,false,true,1215260,0,100 === DOSING CHECK END ===
+
+2. O sistema funciona mas quero meter a dosificacao como um evento 1 no PRGSample
+
+3. Verificar as variaveis da dosificacao e como calculated_volume
+
+3. Fazer um Prg para poder gerar o PRGDosificacao como se gera o PRGSample
+
+
+4 Melhorar os Logs do Dashboard
+
+5 Retirar a visualizado do Dashboard ( usar serial, zmq ou MTQQ)
+
+6. Substituir 2way valves por 3 way valves e meter EC (D1/2)
+
+-----
+
+1
+Dashboard and Dosing Controler conflit 
+
+	1.1 Dashboard Crashes do to cvs file read/writing conflit
+	1.2 Solution: (ZMQ (which will them be substituted by MQTT))
+	Great question! Let me explain how **ZMQ would replace the CSV file communication** between your Dashboard and Dosing Controller.
+
+## **CURRENT FLOW (with CSV files):**
+```
+ESP32 → USB Serial → Dashboard → CSV File → Dosing Controller
+                        ↓
+                   (File conflict!)
+```
+
+## **NEW FLOW (with ZMQ):**
+```
+ESP32 → USB Serial → Dashboard → ZMQ Message → Dosing Controller
+                        ↓
+                   (No files!)
+```
+
+---
+
+## **DETAILED EXPLANATION:**
+
+### **CURRENT SYSTEM:**
+1. **ESP32** sends: `"39.21,0.91529,0.0000,0.00,0.00000,0.00,0.71700,nan,91.46251,0.00,25.00"`
+2. **Dashboard** writes to CSV: `event_data_20250828_143022.csv`
+3. **Dosing Controller** reads same CSV file looking for PRGSample Event #6
+4. **CONFLICT:** Both trying to access same file simultaneously
+
+### **WITH ZMQ:**
+1. **ESP32** sends: `"39.21,0.91529,0.0000,0.00,0.00000,0.00,0.71700,nan,91.46251,0.00,25.00"`
+2. **Dashboard** processes data AND sends ZMQ message instead of CSV
+3. **Dosing Controller** receives ZMQ message directly
+4. **NO CONFLICT:** No shared files!
+
+---
+
+## **CODE CHANGES NEEDED:**
+
+### **Dashboard (Publisher) - MODIFIED:**
+```python
+# CURRENT: Dashboard writes to CSV
+event_csv_writer.writerow([cycle_num, "PRGSample", 6, "measurement", ...])
+
+# NEW: Dashboard sends ZMQ message
+event_socket = context.socket(zmq.PUB)  # ADD THIS
+event_socket.bind("tcp://*:5556")       # ADD THIS
+
+# When detecting PRGSample Event #6:
+event_socket.send_json({               # ADD THIS
+    "type": "prgsample_event6",
+    "cycle": cycle_num,
+    "ph_voltage": ph_voltage,
+    "ph_value": ph_value,
+    "ec_voltage": ec_voltage,
+    "ec_mscm": ec_mscm,
+    "timestamp": time.time()
+})
+
+# Still write CSV for logging (optional)
+event_csv_writer.writerow([...])  # Keep for historical data
+```
+
+### **Dosing Controller (Subscriber) - MODIFIED:**
+```python
+# CURRENT: Reads CSV file
+def detect_prgsample_ph_measurement(self):
+    with open(self.current_event_file, 'r') as file:
+        # Read CSV lines...
+
+# NEW: Receives ZMQ messages
+def setup_event_communication(self):
+    self.event_socket = context.socket(zmq.SUB)
+    self.event_socket.connect("tcp://localhost:5556")
+    self.event_socket.setsockopt(zmq.SUBSCRIBE, b"")  # Subscribe to all
+
+def check_for_events(self):
+    try:
+        # Non-blocking receive
+        message = self.event_socket.recv_json(zmq.NOBLOCK)
+        if message["type"] == "prgsample_event6":
+            self.process_measurement(message)
+    except zmq.Again:
+        pass  # No message available
+```
+
+---
+
+## **KEY BENEFITS:**
+
+### **✅ NO FILE CONFLICTS**
+- Dashboard and Dosing Controller never access same file
+- No more file locking issues
+- No more corrupted reads
+
+### **✅ REAL-TIME COMMUNICATION**
+- **Instant delivery** - no polling CSV files
+- **Event-driven** - dosing controller reacts immediately
+- **Reliable** - ZMQ handles message delivery
+
+### **✅ KEEPS EXISTING INFRASTRUCTURE**
+- **ESP32 code unchanged** - still sends serial data
+- **Dashboard still creates CSV** - for data logging/visualization
+- **ZMQ already exists** - you use it for dosing commands
+
+### **✅ SIMPLE IMPLEMENTATION**
+- Add ~10 lines to Dashboard
+- Add ~15 lines to Dosing Controller
+- Uses existing ZMQ setup
+
+---
+
+## **SUMMARY:**
+
+**ZMQ eliminates the CSV file bottleneck** by having the Dashboard send event notifications directly to the Dosing Controller through memory-based messages instead of file-based communication.
+
+**Your ESP32 → Serial → Dashboard flow stays exactly the same.** Only the Dashboard → Dosing Controller communication changes from "write CSV file / read CSV file" to "send ZMQ message / receive ZMQ message."
+
+**This should solve your file access conflicts that are likely causing the dashboard to freeze!**
+
+ 
+Excellent questions! Let me clarify both points:
+
+## **1. MEMORY-BASED MESSAGES & RAM USAGE:**
+
+**Yes, ZMQ uses RAM, but it's very efficient:**
+
+### **Memory Usage:**
+- **ZMQ messages:** Tiny (few KB each)
+- **Your event data:** ~200 bytes per message
+- **Message lifetime:** Milliseconds (sent and processed immediately)
+- **No accumulation:** Messages don't pile up in RAM
+
+### **Example Memory Usage:**
+```python
+# Your typical event message:
+{
+    "type": "prgsample_event6",
+    "cycle": 142,
+    "ph_voltage": 0.717,
+    "ph_value": 6.2,
+    "ec_voltage": 0.915,
+    "ec_mscm": 1.05,
+    "timestamp": 1693248234.567
+}
+# Size: ~150-200 bytes
+```
+
+**Compare to your current CSV problem:**
+- **Current issue:** `global_data` list grows infinitely (50,000+ entries)
+- **ZMQ messages:** ~10-20 messages per hour, processed instantly
+- **RAM impact:** Negligible (~50KB total vs 50MB+ for global_data)
+
+**Answer: No, ZMQ won't cause RAM issues. Your current `global_data` list is the real RAM problem!**
+
+---
+
+## **2. KEEPING CSV FILES + ZMQ COMMUNICATION:**
+
+**Yes! That's exactly the recommended approach:**
+
+### **DUAL APPROACH:**
+```python
+# Dashboard does BOTH:
+# 1. Write to CSV (for logging/history)
+event_csv_writer.writerow([cycle_num, "PRGSample", 6, ...])
+
+# 2. Send ZMQ message (for real-time communication)
+event_socket.send_json({
+    "type": "prgsample_event6",
+    "cycle": cycle_num,
+    "ph_value": ph_value,
+    "ec_mscm": ec_mscm
+})
+```
+
+### **BENEFITS OF DUAL APPROACH:**
+✅ **CSV files:** Historical data, visualization, backup  
+✅ **ZMQ messages:** Real-time dosing decisions, no file conflicts  
+✅ **Independence:** Dosing controller never touches CSV files  
+✅ **Reliability:** If ZMQ fails, CSV data still exists  
+
+---
+
+## **CLARIFYING YOUR LAST QUESTION:**
+
+> "The dashboard will than used ZMQ messages for the dashboard to right its actions in the cvs File?"
+
+I think you meant: **"The dosing controller will use ZMQ messages for dosing decisions and write its actions to CSV file?"**
+
+**Yes! Perfect approach:**
+
+### **UPDATED FLOW:**
+```
+ESP32 → Serial → Dashboard → {CSV File + ZMQ Message}
+                                ↓           ↓
+                         [History]    [Real-time]
+                                         ↓
+                              Dosing Controller
+                                         ↓
+                              {Dosing Action + Log to CSV}
+```
+
+### **IMPLEMENTATION:**
+```python
+# Dashboard: Dual output
+def process_prgsample_event6(data):
+    # 1. Log to CSV (history)
+    event_csv_writer.writerow([...])
+    
+    # 2. Send ZMQ (real-time)
+    event_socket.send_json(data)
+
+# Dosing Controller: ZMQ input, CSV output  
+def process_measurement(zmq_message):
+    # Receive from ZMQ
+    ph = zmq_message["ph_value"]
+    ec = zmq_message["ec_mscm"]
+    
+    # Make dosing decision
+    dosing_action = self.decide_dosing(ph, ec)
+    
+    # Log dosing action to CSV
+    self.log_dosing_to_csv(dosing_action)
+```
+
+**This eliminates file access conflicts while preserving all your data logging!**
+
+
+
+2
+Dosing
+	Verificar se Dosing funcionar no fim do ciclo de 24h - AINDA NAO FUNCIONA

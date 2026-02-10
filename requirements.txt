@@ -1,0 +1,11 @@
+# Python dependencies for the hydroponic dashboard
+dash>=2.14.0
+dash-bootstrap-components>=1.4.0
+plotly>=5.15.0
+pandas>=2.0.0
+pyserial>=3.5
+zmq>=0.0.0
+pyzmq>=25.0.0
+numpy>=1.24.0
+torch>=2.0.0
+scikit-learn>=1.3.0

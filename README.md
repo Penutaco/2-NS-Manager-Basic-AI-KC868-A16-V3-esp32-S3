@@ -1,0 +1,1 @@
+# 1-NS-Manager-Basic-AI-KC868-A16-esp32-

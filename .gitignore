@@ -1,0 +1,45 @@
+# PlatformIO build artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+build/
+
+# VSCode settings (keep some, ignore others)
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# Python virtual environments - CRITICAL
+myenv/
+venv/
+env/
+dashboard_env/
+*/myenv/
+*/venv/
+*/env/
+
+# Python cache (for your dashboard files)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Temporary and cache files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Data files (you might want to keep these, but they can be large)
+0\ Dashboard/data/
+*.csv
+*.log
+
+# Allow CSV files in 1 PRG Events protocol and its subfolders
+!1 PRG Events protocol/**/*.csv
+!1 PRG Events protocol/*.csv
+
+# Allow CSV files in 2 PRG Events protocol and its subfolders
+!2 PRG Events protocol/**/*.csv
+!2 PRG Events protocol/*.csv

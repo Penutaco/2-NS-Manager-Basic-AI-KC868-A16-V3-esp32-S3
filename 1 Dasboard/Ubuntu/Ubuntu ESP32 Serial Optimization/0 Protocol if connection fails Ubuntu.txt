@@ -1,0 +1,42 @@
+ESP32 Dashboard - Permanent Optimizations Summary
+================================================
+
+✅ PERMANENT SETTINGS (No need to run again):
+• USB autosuspend disabled (-1) - Applied at every boot
+• CH340 power control set to "on" - Applied at every boot  
+• Serial port low latency - Applied at every boot
+• Message filtering - Built into dashboard code
+
+🎯 DASHBOARD RUNNING OPTIONS:
+
+Option 1: Normal Method (Recommended for most cases)
+• Command: "/home/penutaco/GitHub/Hydroponic Prototype V1/.venv/bin/python" "/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard/1p2 dashboard v10 NS Manager Basic.py"
+• Use when: Normal operation, low system load
+
+Option 2: High Priority Method (If experiencing connection issues)
+
+• Step 1: ./start_dashboard_high_priority.sh (This automatically starts the dashboard)
+• Alternative: cd "/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard/Ubuntu ESP32 Serial Optimization" && sudo ./start_dashboard_high_priority.sh
+• Use when: System under heavy load, need maximum responsiveness, critical monitoring
+• NOTE: The script starts the dashboard - do NOT run dashboard separately
+
+🔧 TROUBLESHOOTING - If Still Getting Connection Lost:
+
+Quick Check:
+• Run: ./check_esp32_status.sh
+• Verify USB autosuspend shows "-1"
+• Verify CH340 power control shows "on"
+
+Emergency Protocol:
+1. cd "/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard"
+2. ./esp32_usb_optimization.sh (re-apply optimizations)
+3. ./start_dashboard_high_priority.sh (start with high priority)
+
+Connection Monitor (Background protection):
+• Run: nohup ./esp32_usb_monitor.sh &
+• This will auto-recover from any USB disconnections
+
+💡 SUMMARY:
+• Most cases: Just run Option 1 (normal dashboard command)
+• Connection issues: Use Option 2 (high priority launcher)
+• Persistent issues: Run connection monitor in background

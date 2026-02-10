@@ -1,0 +1,15 @@
+{
+  "last_update": "2026-01-08T13:54:20.110060",
+  "connection_healthy": false,
+  "last_data_received": null,
+  "current_port": "/dev/cu.usbmodem1301",
+  "reconnection_in_progress": true,
+  "health_monitor_active": true,
+  "recent_errors": [
+    "[13:54:15] RECOVERY: Detected ESP32 ports: []",
+    "[13:54:20] RECOVERY: Smart cycling to next available ESP32 port",
+    "[13:54:20] RECOVERY: Scanning USB ports: []",
+    "[13:54:20] RECOVERY: Detected ESP32 ports: []",
+    "[13:54:20] WARNING: No ESP32 ports detected, rescanning in 10 seconds..."
+  ]
+}

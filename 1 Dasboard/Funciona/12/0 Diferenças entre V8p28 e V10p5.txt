@@ -1,0 +1,73 @@
+Diferenças entre V8p28 e V10p5? O que V10p5 TEM que V8p28 NÃO TEM:• Sistema completo de 14 estágios (CONFIG + funções + lógica) • Inicialização automática do program_start_time • Targets dinâmicos baseados em estágios • Logs de transição entre estágios • EC continuous monitoring configurável por estágio? O que V8p28 TEM que V10p5 NÃO TEM:Código Incompleto/Em Falta na V10p5:• detect_prgsample_ph_measurement() - falta o bloco try/except completo para processar valores do sensor • check_for_prgsample_event2() - falta código para adicionar eventos ao buffer • check_event_buffer_for_event6() - falta continue statement e código de registro • _find_recent_valid_data() - falta todo o loop de processamento de dados • get_current_cycle_id() - falta fallback logic e processamento de linhas • detect_prg_events() - falta continue statements e lógica de processamento • initialize_event_detection() - falta continue statements e determinação de event_type • send_dosing_command() - falta response handling completo • chemistry_based_dosing_decision() - falta return statement no final da função pH-Imports em Falta:• V8p28 tem imports completos no topo • V10p5 tem apenas imports parciais (falta várias bibliotecas)?? Status Funcional:• V8p28 = Código incompleto (várias funções com lacunas) • V10p5 = V8p28 incompleto + Sistema de 14 estágios completo?? Conclusão:V10p5 precisa que sejam completadas TODAS as lacunas de código da V8p28 para estar 100% funcional. Tem o sistema de estágios funcionando, mas herdou todas as funções incompletas da base V8p28.V10p5 = V8p28 (com lacunas) + 14 Estágios (completo)
+
+
+Análise de Riscos das Lacunas de Código na V10p5
+🔴 RISCOS CRÍTICOS (Programa para completamente):
+detect_prgsample_ph_measurement() - RISCO ALTO
+O que faz: Processa valores pH/EC do event_data.csv
+Lacuna: try/except incompleto para parsing de valores
+Risco: CRASH quando encontra dados malformados
+Sintoma: ValueError ou IndexError → programa termina
+Impacto: Sistema não consegue ler sensores → ZERO dosagem
+send_dosing_command() - RISCO ALTO
+O que faz: Envia comandos para ativar bombas
+Lacuna: Response handling incompleto
+Risco: TIMEOUT ou resposta malformada → programa trava
+Sintoma: ZMQ socket fica bloqueado → todas as dosagens falham
+Impacto: Plantas morrem por falta de correção pH/EC
+🟡 RISCOS MODERADOS (Funcionalidade degradada):
+check_for_prgsample_event2() - RISCO MÉDIO
+O que faz: Adiciona eventos ao buffer para sincronização
+Lacuna: Código para adicionar ao buffer
+Risco: Eventos #6 perdidos → dosagem não sincronizada
+Sintoma: "Event #6 not detected" repetidamente
+Impacto: Dosagem aleatória → overdose ou underdose
+get_current_cycle_id() - RISCO MÉDIO
+O que faz: Extrai cycle ID do ficheiro para tracking
+Lacuna: Fallback logic e processamento de linhas
+Risco: IDs incorretos → dados de aprendizagem corrompidos
+Sintoma: Coefficients não atualizados corretamente
+Impacto: Dosagem progressivamente pior
+chemistry_based_dosing_decision() - RISCO MÉDIO
+O que faz: Calcula volumes de dosagem
+Lacuna: return statement na função pH-
+Risco: pH- nunca retorna dosagem → pH nunca baixa
+Sintoma: pH fica sempre alto → plantas stressadas
+Impacto: Crescimento deficiente
+🟢 RISCOS BAIXOS (Degradação graceful):
+_find_recent_valid_data() - RISCO BAIXO
+O que faz: Backup para encontrar dados válidos
+Lacuna: Loop de processamento de dados
+Risco: Fallback não funciona quando dados principais falham
+Sintoma: "No valid sensor data" occasionally
+Impacto: Ciclos ocasionais sem dosagem (recuperável)
+detect_prg_events() - RISCO BAIXO
+O que faz: Detecta calibrações PRGCal
+Lacuna: Continue statements e lógica
+Risco: Não detecta calibrações → dosa durante calibração
+Sintoma: Dosagens incorretas durante calibração
+Impacto: Dados de calibração corrompidos (mas raro)
+check_event_buffer_for_event6() - RISCO BAIXO
+O que faz: Procura Event #6 em buffer (backup)
+Lacuna: Continue statements
+Risco: Backup method não funciona perfeitamente
+Sintoma: Ocasionalmente perde events já processados
+Impacto: Duplicated dosing (raro, mas perigoso)
+📊 RESUMO DE IMPACTO:
+Função	Frequência de Uso	Impacto se Falhar	Risco Total
+detect_prgsample_ph_measurement()	Todo ciclo	CRÍTICO	🔴 ALTO
+send_dosing_command()	Toda dosagem	CRÍTICO	🔴 ALTO
+check_for_prgsample_event2()	Todo ciclo	MODERADO	🟡 MÉDIO
+get_current_cycle_id()	Todo ciclo	MODERADO	🟡 MÉDIO
+chemistry_based_dosing_decision()	Quando pH alto	MODERADO	🟡 MÉDIO
+_find_recent_valid_data()	Quando dados falham	BAIXO	🟢 BAIXO
+detect_prg_events()	Durante calibração	BAIXO	🟢 BAIXO
+🚨 CONCLUSÃO:
+O programa "funciona" mas está numa situação precária:
+
+2 funções críticas podem causar crash total
+3 funções importantes causam dosagem incorreta
+2 funções de backup não protegem adequadamente
+Risco Real: O sistema pode funcionar 80% do tempo, mas quando falha, falha catastrophicamente com possível perda de plantas ou overdose química.
+
+Recomendação: Completar PELO MENOS as funções críticas antes de produção.

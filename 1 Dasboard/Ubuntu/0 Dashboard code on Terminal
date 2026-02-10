@@ -1,0 +1,8 @@
+
+
+cd "/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard" && "/home/penutaco/GitHub/Hydroponic Prototype V1/.venv/bin/python" "1p2 dashboard v10 NS Manager Basic.py"
+
+sudo "/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard/Ubuntu ESP32 Serial Optimization/start_dashboard_high_priority.sh"
+
+
+cd "/home/penutaco/GitHub/Hydroponic Prototype V1/0 Dasboard" && "/home/penutaco/GitHub/Hydroponic Prototype V1/.venv/bin/python" dashboard_watchdog.py
